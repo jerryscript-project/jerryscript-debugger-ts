@@ -159,6 +159,7 @@ export class JerryDebugProtocolHandler {
     if (this.lastBreakpointHit) {
       throw new Error('attempted pause while at breakpoint');
     }
+    this.logSentPacket('Stop');
     this.debuggerClient!.send(encodeMessage(this.byteConfig, 'B', [SP.JERRY_DEBUGGER_STOP]));
   }
 
@@ -388,6 +389,7 @@ export class JerryDebugProtocolHandler {
 
     // just patch up incoming message
     data[0] = SP.JERRY_DEBUGGER_FREE_BYTE_CODE_CP;
+    this.logSentPacket('Free Byte Code CP');
     this.debuggerClient!.send(data);
   }
 
@@ -544,6 +546,11 @@ export class JerryDebugProtocolHandler {
     let offset = 0;
     while (offset < arrayLength - 1) {
       const clamped = Math.min(arrayLength - offset, this.maxMessageSize);
+      if (offset) {
+        this.logSentPacket('Eval Part');
+      } else {
+        this.logSentPacket('Eval');
+      }
       this.debuggerClient!.send(array.slice(offset, offset + clamped));
       offset += clamped - 1;
       array[offset] = SP.JERRY_DEBUGGER_EVAL_PART;
@@ -582,6 +589,7 @@ export class JerryDebugProtocolHandler {
       delete this.activeBreakpoints[breakpointId];
       breakpoint.activeIndex = -1;
     }
+    this.logSentPacket('Update Breakpoint');
     this.debuggerClient!.send(encodeMessage(this.byteConfig, 'BBCI', [
       SP.JERRY_DEBUGGER_UPDATE_BREAKPOINT,
       Number(enable),
@@ -595,18 +603,23 @@ export class JerryDebugProtocolHandler {
     if (!this.lastBreakpointHit) {
       throw new Error('backtrace not allowed while app running');
     }
+    this.logSentPacket('Get Backtrace');
     this.debuggerClient!.send(encodeMessage(this.byteConfig, 'BI', [SP.JERRY_DEBUGGER_GET_BACKTRACE, 0]));
   }
 
   logPacket(description: string, ignorable: boolean = false) {
     // certain packets are ignored while evals are pending
     const ignored = (ignorable && this.evalsPending) ? 'Ignored: ' : '';
-    console.log(`[${ignored}${description}]`);
+    console.log(`[Debugger > ${ignored}${description}]`);
+  }
+
+  logSentPacket(description: string) {
+    // certain packets are ignored while evals are pending
+    console.log(`[Debugger < ${description}]`);
   }
 
   private abort(message: string) {
     if (this.delegate.onError) {
-      console.log('Abort:', message);
       this.delegate.onError(0, message);
     }
   }
@@ -616,6 +629,15 @@ export class JerryDebugProtocolHandler {
       throw new Error('attempted resume while not at breakpoint');
     }
     this.lastBreakpointHit = undefined;
+    let cmd = 'Next';
+    if (code === SP.JERRY_DEBUGGER_STEP) {
+      cmd = 'Step';
+    } else if (code === SP.JERRY_DEBUGGER_FINISH) {
+      cmd = 'Finish';
+    } else if (code === SP.JERRY_DEBUGGER_CONTINUE) {
+      cmd = 'Continue';
+    }
+    this.logSentPacket(cmd);
     this.debuggerClient!.send(encodeMessage(this.byteConfig, 'B', [code]));
     if (this.delegate.onResume) {
       this.delegate.onResume();
