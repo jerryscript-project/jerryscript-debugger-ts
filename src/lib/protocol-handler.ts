@@ -41,6 +41,7 @@ export interface JerryDebugProtocolDelegate {
   onBreakpointHit?(message: JerryMessageBreakpointHit): void;
   onEvalResult?(subType: number, result: string): void;
   onError?(code: number, message: string): void;
+  onOutputResult?(subType: number, result: string): void;
   onResume?(): void;
   onScriptParsed?(message: JerryMessageScriptParsed): void;
 }
@@ -97,6 +98,7 @@ export class JerryDebugProtocolHandler {
   private functionName?: string;
   private functionNameData?: Uint8Array;
   private evalResultData?: Uint8Array;
+  private outputResultData?: Uint8Array;
   private functions: FunctionMap = {};
   private newFunctions: FunctionMap = {};
   private backtrace: Array<Breakpoint> = [];
@@ -135,6 +137,8 @@ export class JerryDebugProtocolHandler {
       [SP.JERRY_DEBUGGER_BACKTRACE_END]: this.onBacktrace,
       [SP.JERRY_DEBUGGER_EVAL_RESULT]: this.onEvalResult,
       [SP.JERRY_DEBUGGER_EVAL_RESULT_END]: this.onEvalResult,
+      [SP.JERRY_DEBUGGER_OUTPUT_RESULT]: this.onOutputResult,
+      [SP.JERRY_DEBUGGER_OUTPUT_RESULT_END]: this.onOutputResult,
     };
   }
 
@@ -486,6 +490,19 @@ export class JerryDebugProtocolHandler {
       }
       this.evalResultData = undefined;
       this.evalsPending--;
+    }
+  }
+
+  onOutputResult(data: Uint8Array) {
+    this.logPacket('Output Result');
+    this.outputResultData = assembleUint8Arrays(this.outputResultData, data);
+    if (data[0] === SP.JERRY_DEBUGGER_OUTPUT_RESULT_END) {
+      const subType = data[data.length - 1];
+      const outputResult = cesu8ToString(this.outputResultData.slice(0, -1));
+      if (this.delegate.onOutputResult) {
+        this.delegate.onOutputResult(subType, outputResult);
+      }
+      this.outputResultData = undefined;
     }
   }
 

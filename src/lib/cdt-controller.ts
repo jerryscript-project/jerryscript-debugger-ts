@@ -17,7 +17,7 @@ import Crdp from 'chrome-remote-debug-protocol';
 import { Breakpoint } from './breakpoint';
 import { JerryDebugProtocolHandler, JerryMessageScriptParsed, JerryMessageBreakpointHit } from './protocol-handler';
 import { ChromeDevToolsProxyServer } from './cdt-proxy';
-import { JERRY_DEBUGGER_EVAL_OK } from './jrs-protocol-constants';
+import * as SP from './jrs-protocol-constants';
 
 export interface JerryDebuggerDelegate {
   onScriptParsed?(message: JerryMessageScriptParsed): void;
@@ -47,7 +47,7 @@ export class CDTController {
 
   // JerryDebuggerDelegate functions
   onError(code: number, message: string) {
-    console.log(`Error: ${message} (${code})`);
+    console.log(`\nError: ${message} (${code})\n`);
   }
 
   onScriptParsed(message: JerryMessageScriptParsed) {
@@ -81,7 +81,7 @@ export class CDTController {
       type: 'string',
       value: result,
     };
-    if (subType === JERRY_DEBUGGER_EVAL_OK) {
+    if (subType === SP.JERRY_DEBUGGER_EVAL_OK) {
       functions!.resolve({
         result: remoteObject,
       });
@@ -90,6 +90,28 @@ export class CDTController {
         result: remoteObject,
         // FIXME: provide exceptionDetails
       });
+    }
+  }
+
+  onOutputResult(subType: number, message: string) {
+    let type: 'debug' | 'error' | 'log' | 'trace' | 'warning' = 'log';
+    switch (subType) {
+      case SP.JERRY_DEBUGGER_OUTPUT_DEBUG:
+        type = 'debug';
+        break;
+      case SP.JERRY_DEBUGGER_OUTPUT_ERROR:
+        type = 'error';
+        break;
+      case SP.JERRY_DEBUGGER_OUTPUT_TRACE:
+        type = 'trace';
+        break;
+      case SP.JERRY_DEBUGGER_OUTPUT_WARNING:
+        type = 'warning';
+        break;
+    }
+    // NOTE: this drops an early 'Connected' message
+    if (this.proxyServer) {
+      this.proxyServer.sendConsoleAPICalled(type, message);
     }
   }
 
