@@ -186,7 +186,7 @@ export class ChromeDevToolsProxyServer {
    * Sends Debugger.paused event for the current debugger location
    */
   sendPaused(breakpoint: Breakpoint | undefined, backtrace: Array<Breakpoint>,
-             reason: 'exception' | 'debugCommand' | 'other') {
+             reason: 'exception' | 'debugCommand' | 'other', exception?: string) {
     const callFrames: Array<Crdp.Debugger.CallFrame> = [];
     let nextFrameId = 0;
     for (const bp of backtrace) {
@@ -209,10 +209,12 @@ export class ChromeDevToolsProxyServer {
       hitBreakpoints.push(String(breakpoint.activeIndex));
     }
 
+    const data = exception ? { message: exception } : undefined;
     this.api.Debugger.emitPaused({
-      hitBreakpoints,
-      reason,
       callFrames,
+      reason,
+      data,
+      hitBreakpoints,
     });
   }
 
