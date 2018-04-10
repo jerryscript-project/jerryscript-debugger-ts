@@ -23,6 +23,9 @@ import { Breakpoint } from './breakpoint';
 import { onHttpRequest } from './cdt-proxy-http';
 import { JerryMessageScriptParsed } from './protocol-handler';
 
+export type PausedReason = 'exception' | 'debugCommand' | 'other';
+export type PauseForExceptions = 'none' | 'uncaught' | 'all';
+
 export interface CDTDelegate {
   requestScripts: () => void;
   requestBreakpoint: () => void;
@@ -63,7 +66,7 @@ export class ChromeDevToolsProxyServer {
   readonly uuid: string;
   readonly jsfile: string;
   private skipAllPauses: boolean = false;
-  private pauseOnExceptions: ('none' | 'uncaught' | 'all') = 'none';
+  private pauseOnExceptions: PauseForExceptions = 'none';
   private asyncCallStackDepth: number = 0;  // 0 is unlimited
   private delegate: CDTDelegate;
   private api: Crdp.CrdpServer;
@@ -186,7 +189,7 @@ export class ChromeDevToolsProxyServer {
    * Sends Debugger.paused event for the current debugger location
    */
   sendPaused(breakpoint: Breakpoint | undefined, backtrace: Array<Breakpoint>,
-             reason: 'exception' | 'debugCommand' | 'other', exception?: string) {
+             reason: PausedReason, exception?: string) {
     const callFrames: Array<Crdp.Debugger.CallFrame> = [];
     let nextFrameId = 0;
     for (const bp of backtrace) {
