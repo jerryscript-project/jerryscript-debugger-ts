@@ -1,0 +1,23 @@
+before_install:
+- curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.5.1
+- export PATH="$HOME/.yarn/bin:$PATH"
+install:
+- yarn
+language: node_js
+node_js:
+- '9'
+cache:
+  yarn: true
+jobs:
+  include:
+  - stage: lint
+    script: yarn lint
+  - stage: build
+    script: yarn prepare
+  - stage: test
+    script:
+    - yarn test
+  - stage: deploy
+    script:
+    - echo "Deploying to npm..."
+    - echo "!!! TODO !!!"

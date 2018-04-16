@@ -1,0 +1,14 @@
+{
+  "name": "@jerryscript/debugger",
+  "version": "0.0.1",
+  "description": "JerryScript Debugger & Chrome DevTools Proxy",
+  "scripts": {
+    "prepare": "echo prepare",
+    "lint": "echo lint",
+    "test": "echo test"
+  },
+  "repository": "https://github.com/jerryscript-project/jerryscript-debugger-ts/",
+  "author": "JS Foundation and other contributors",
+  "license": "Apache-2.0",
+  "private": false
+}
