@@ -11,7 +11,10 @@ cache:
 jobs:
   include:
   - stage: lint
-    script: yarn lint
+    script:
+    - ./tools/check-signed-off.sh
+    - ./tools/check-license.py
+    - yarn lint
   - stage: build
     script: yarn prepare
   - stage: test
