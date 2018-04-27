@@ -588,7 +588,7 @@ describe('logPacket', () => {
     const handler = new JerryDebugProtocolHandler({});
     handler.logPacket('foo');
     expect(spy).toHaveBeenCalled();
-    expect(spy.mock.calls[0][0]).toEqual('[foo]');
+    expect(spy.mock.calls[0][0]).toEqual('[Debugger > foo]');
   });
 
   it('prints packet name in brackets with second arg false', () => {
@@ -596,7 +596,7 @@ describe('logPacket', () => {
     const handler = new JerryDebugProtocolHandler({});
     handler.logPacket('foo', false);
     expect(spy).toHaveBeenCalled();
-    expect(spy.mock.calls[0][0]).toEqual('[foo]');
+    expect(spy.mock.calls[0][0]).toEqual('[Debugger > foo]');
   });
 
   it('prints packet name in brackets with second arg true', () => {
@@ -605,6 +605,6 @@ describe('logPacket', () => {
     (handler as any).evalsPending = 1;
     handler.logPacket('foo', true);
     expect(spy).toHaveBeenCalled();
-    expect(spy.mock.calls[0][0]).toEqual('[Ignored: foo]');
+    expect(spy.mock.calls[0][0]).toEqual('[Debugger > Ignored: foo]');
   });
 });

@@ -24,7 +24,7 @@ describe('onError', () => {
     const controller = new CDTController();
     controller.onError(42, 'foo');
     expect(spy).toHaveBeenCalled();
-    expect(spy.mock.calls[0][0]).toEqual('Error: foo (42)');
+    expect(spy.mock.calls[0][0]).toEqual('\nError: foo (42)\n');
   });
 });
 
