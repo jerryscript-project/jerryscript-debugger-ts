@@ -36,6 +36,8 @@ export class CDTController {
   //   set, and before issuing further commands to the debugger
   public proxyServer?: ChromeDevToolsProxyServer;
   private scripts: Array<JerryMessageScriptParsed> = [];
+  private pendingException: boolean = false;
+  private pendingExceptionStr?: string;
   private pendingBreakpoint?: Breakpoint;
   // stores resolve and reject functions from promised evaluations
   private evalResolvers: Array<PromiseFunctions> = [];
@@ -62,12 +64,23 @@ export class CDTController {
     // this can happen before the proxy is connected
     if (this.proxyServer) {
       this.pendingBreakpoint = message.breakpoint;
+      this.pendingException = false;
+      this.protocolHandler!.requestBacktrace();
+    }
+  }
+
+  onExceptionHit(message: JerryMessageBreakpointHit, exception?: string) {
+    // this can happen before the proxy is connected
+    if (this.proxyServer) {
+      this.pendingBreakpoint = message.breakpoint;
+      this.pendingException = true;
+      this.pendingExceptionStr = exception;
       this.protocolHandler!.requestBacktrace();
     }
   }
 
   onBacktrace(backtrace: Array<Breakpoint>) {
-    this.sendPaused(this.pendingBreakpoint, backtrace);
+    this.sendPaused(this.pendingBreakpoint, backtrace, this.pendingException, this.pendingExceptionStr);
     this.pendingBreakpoint = undefined;
   }
 
@@ -215,10 +228,11 @@ export class CDTController {
   }
 
   // 'report' functions are events from Debugger to CDT
-  private sendPaused(breakpoint: Breakpoint | undefined, backtrace: Array<Breakpoint>) {
+  private sendPaused(breakpoint: Breakpoint | undefined, backtrace: Array<Breakpoint>,
+                     isException: boolean, exception?: string) {
     // Node uses 'Break on start' but this is not allowable in crdp.d.ts
-    const reason = breakpoint ? 'debugCommand' : 'other';
-    this.proxyServer!.sendPaused(breakpoint, backtrace, reason);
+    const reason = isException ? 'exception' : (breakpoint ? 'debugCommand' : 'other');
+    this.proxyServer!.sendPaused(breakpoint, backtrace, reason, exception);
   }
 
   /**

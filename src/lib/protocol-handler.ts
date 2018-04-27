@@ -40,6 +40,7 @@ export interface JerryDebugProtocolDelegate {
   onBacktrace?(backtrace: Array<Breakpoint>): void;
   onBreakpointHit?(message: JerryMessageBreakpointHit): void;
   onEvalResult?(subType: number, result: string): void;
+  onExceptionHit?(message: JerryMessageBreakpointHit, exception?: string): void;
   onError?(code: number, message: string): void;
   onResume?(): void;
   onScriptParsed?(message: JerryMessageScriptParsed): void;
@@ -96,13 +97,14 @@ export class JerryDebugProtocolHandler {
   private sourceNameData?: Uint8Array;
   private functionName?: string;
   private functionNameData?: Uint8Array;
+  private exceptionStr?: string;
+  private exceptionData?: Uint8Array;
+  private backtrace: Array<Breakpoint> = [];
   private evalResultData?: Uint8Array;
   private functions: FunctionMap = {};
   private newFunctions: FunctionMap = {};
-  private backtrace: Array<Breakpoint> = [];
 
   private nextScriptID: number = 1;
-  private exceptionData?: Uint8Array;
   private evalsPending: number = 0;
   private lastBreakpointHit?: Breakpoint;
   private lastBreakpointExact: boolean = true;
@@ -131,6 +133,9 @@ export class JerryDebugProtocolHandler {
       [SP.JERRY_DEBUGGER_FUNCTION_NAME_END]: this.onFunctionName,
       [SP.JERRY_DEBUGGER_RELEASE_BYTE_CODE_CP]: this.onReleaseByteCodeCP,
       [SP.JERRY_DEBUGGER_BREAKPOINT_HIT]: this.onBreakpointHit,
+      [SP.JERRY_DEBUGGER_EXCEPTION_HIT]: this.onBreakpointHit,
+      [SP.JERRY_DEBUGGER_EXCEPTION_STR]: this.onExceptionStr,
+      [SP.JERRY_DEBUGGER_EXCEPTION_STR_END]: this.onExceptionStr,
       [SP.JERRY_DEBUGGER_BACKTRACE]: this.onBacktrace,
       [SP.JERRY_DEBUGGER_BACKTRACE_END]: this.onBacktrace,
       [SP.JERRY_DEBUGGER_EVAL_RESULT]: this.onEvalResult,
@@ -435,9 +440,8 @@ export class JerryDebugProtocolHandler {
 
     if (data[0] === SP.JERRY_DEBUGGER_EXCEPTION_HIT) {
       console.log('Exception throw detected');
-      if (this.exceptionData) {
-        console.log('Exception hint:', cesu8ToString(this.exceptionData));
-        this.exceptionData = undefined;
+      if (this.exceptionStr) {
+        console.log('Exception hint:', this.exceptionStr);
       }
     }
 
@@ -452,9 +456,24 @@ export class JerryDebugProtocolHandler {
     const atAround = breakpointRef.exact ? 'at' : 'around';
     console.log(`Stopped ${atAround} ${breakpointInfo}${breakpoint}`);
 
-    // TODO: handle exception case differently
-    if (this.delegate.onBreakpointHit) {
-      this.delegate.onBreakpointHit(breakpointRef);
+    if (data[0] === SP.JERRY_DEBUGGER_EXCEPTION_HIT) {
+      // TODO: handle exception case differently
+      if (this.delegate.onExceptionHit) {
+        this.delegate.onExceptionHit(breakpointRef, this.exceptionStr);
+      }
+    } else {
+      if (this.delegate.onBreakpointHit) {
+        this.delegate.onBreakpointHit(breakpointRef);
+      }
+    }
+  }
+
+  onExceptionStr(data: Uint8Array) {
+    this.logPacket('Exception Str');
+    this.exceptionData = assembleUint8Arrays(this.evalResultData, data);
+    if (data[0] === SP.JERRY_DEBUGGER_EXCEPTION_STR_END) {
+      this.exceptionStr = cesu8ToString(this.exceptionData);
+      this.exceptionData = undefined;
     }
   }
 
